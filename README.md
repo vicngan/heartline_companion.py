@@ -4,6 +4,7 @@ An emotionally-intelligent care companion that blends soft check-ins with logist
 
 ## ✨ MVP Feature Overview
 - **Emotional check-in** – captures mood, energy, and rhythm to tailor routines without guilt.
+- **Daily reflection lane** – energy slider now sits beside a quick reflection card so mood journaling never hides below the fold.
 - **Appointment planner** – log upcoming visits, view gentle reminders, and keep prep notes.
 - **Call script generator** – auto builds phone scripts with anxiety-aware language.
 - **Symptom & note tracker** – structured log you can export as a cute PDF for your care team.
@@ -15,6 +16,7 @@ An emotionally-intelligent care companion that blends soft check-ins with logist
 - **Calendar & digest lab** – export ICS files, prep Google sync, and email a weekly pastel digest to yourself or a mentor.
 - **Support circle sharing** – download a privacy-aware care packet (JSON) or queue an invite for a trusted teammate.
 - **Ambient cue studio** – pick a lo-fi/matcha sound loop to use as a gentle alarm (download for offline shifts).
+- **Mini self check-in expander** – a consistent keyed `st.text_area` keeps dual check-ins stable even after theme swaps.
 
 ### Screen flow
 1. **Home** – soft check-in, adaptive routines, recent emotional receipts, weekly digest.
@@ -69,5 +71,6 @@ expo start
 - **Calendar integrations** – connect Google Calendar / iCal APIs to auto-create appointments noted inside Heartline.
 - **Insights** – connect the digest + support-circle hooks to a transactional email or SMS service.
 - **Design polish** – layer on a design system (shades of blush, serif fonts) via Streamlit themes or migrate UI into React Native/Flutter when ready for full mobile polish.
+- **QA checklist** – after layout tweaks, run `python3 -m py_compile app.py` then `streamlit run app.py` to confirm there are no lingering NameErrors or duplicate widget IDs.
 
 Take what resonates, leave the rest — Heartline adapts with you. 💗
