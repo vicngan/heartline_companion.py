@@ -908,9 +908,50 @@ def render_home():
         mood_label = "You’re glowing with momentum!! ⚡️"
 
     st.caption(mood_label)
+
+    st.subheader("Daily reflection")
+    mood_choice = st.radio(
+        "How did today feel?",
+        ["😣", "😕", "🙂", "😊", "🤩"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="reflection_mood",
+    )
+    reflection_note = st.text_input(
+        "One sentence to capture the day (optional)",
+        placeholder="e.g., Felt steadier after lunch walk.",
+        key="reflection_note",
+    )
+    if st.button("Save reflection", key="save_reflection"):
+        st.session_state.daily_reflections.append(
+            {
+                "timestamp": datetime.now(),
+                "mood": ["😣", "😕", "🙂", "😊", "🤩"].index(mood_choice) + 1,
+                "emoji": mood_choice,
+                "note": reflection_note.strip(),
+            }
+        )
+        st.success("Reflection saved.")
+    if st.session_state.daily_reflections:
+        df_reflect = pd.DataFrame(
+            [
+                {"Time": entry["timestamp"], "Mood": entry["mood"]}
+                for entry in st.session_state.daily_reflections
+            ]
+        )
+        st.line_chart(df_reflect.set_index("Time"))
+
     st.divider()
 
     apply_energy_aura(latest_energy)
+    with st.expander("mini self check-in 🫧", expanded=False):
+        st.text_area(
+            "What does your body need right now?",
+            placeholder="water? music? stretch? warmth? a tiny snack? silence?",
+            height=60,
+            key="home_self_check",
+        )
+
 
 def apply_energy_aura(energy):
     # map energy → soft hue gradient
@@ -936,11 +977,12 @@ def apply_energy_aura(energy):
         """,
         unsafe_allow_html=True,
     )
-    with st.expander("mini self check-in 🫧"):
+    with st.expander("mini self check-in 🫧", expanded=False):
         st.text_area(
             "What does your body need right now?",
             placeholder="water? music? stretch? warmth? a tiny snack? silence?",
             height=60,
+            key="aura_self_check",
         )
 
     section = st.radio(
@@ -959,22 +1001,40 @@ def apply_energy_aura(energy):
 
     if section == "Planner":
         st.markdown("### Today’s plan")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown("### PRIMARY FOCUS")
-            st.write("Choose one bold move (project chunk, call, study sprint).")
-            primary_task = st.text_input(" ", key="primary_task")
-            primary_done = st.checkbox("done", key="primary_done")
-        with col2:
-            st.markdown("### SUPPORT TASK")
-            st.write("Handle an admin task or prep a meal.")
-            support_task = st.text_input(" ", key="support_task")
-            support_done = st.checkbox("done", key="support_done")
-        with col3:
-            st.markdown("### QUICK ACTION")
-            st.write("Send one message or tidy one corner.")
-            quick_task = st.text_input(" ", key="quick_task")
-            quick_done = st.checkbox("done", key="quick_done")
+        plan_specs = [
+            {
+                "title": "PRIMARY FOCUS",
+                "hint": "Something big and spectacular!!",
+                "input_key": "primary_task",
+                "checkbox_key": "primary_done",
+                "placeholder": "Submit lab report draft",
+            },
+            {
+                "title": "SUPPORT TASK",
+                "hint": "Something great and amazing!!.",
+                "input_key": "support_task",
+                "checkbox_key": "support_done",
+                "placeholder": "Email advisor / prep ingredients",
+            },
+            {
+                "title": "QUICK ACTION",
+                "hint": "Something small but mighty!!",
+                "input_key": "quick_task",
+                "checkbox_key": "quick_done",
+                "placeholder": "Text back / reset nightstand",
+            },
+        ]
+        for col, spec in zip(st.columns(3), plan_specs):
+            with col:
+                st.markdown(f"**{spec['title']}**")
+                st.caption(spec["hint"])
+                st.text_input(
+                    "Task",
+                    key=spec["input_key"],
+                    label_visibility="collapsed",
+                    placeholder=spec["placeholder"],
+                )
+                st.checkbox("mark done", key=spec["checkbox_key"])
 
         st.subheader("Add a task to the cloud ☁️")
         new_task = st.text_input("Task", placeholder="email Dr. Kim...")
@@ -985,41 +1045,6 @@ def apply_energy_aura(energy):
                 st.success("Task tucked into the cloud.")
             else:
                 st.error("Give the task a tiny name first.")
-
-        st.subheader("Daily reflection")
-        col_mood, col_note = st.columns([1, 2])
-        with col_mood:
-            mood_choice = st.radio(
-                "How did today feel?",
-                ["😣", "😕", "🙂", "😊", "🤩"],
-                horizontal=True,
-                label_visibility="collapsed",
-                key="reflection_mood",
-            )
-        with col_note:
-            reflection_note = st.text_input(
-                "One sentence to capture the day (optional)",
-                placeholder="e.g., Felt steadier after lunch walk.",
-                key="reflection_note",
-            )
-        if st.button("Save reflection", key="save_reflection"):
-            st.session_state.daily_reflections.append(
-                {
-                    "timestamp": datetime.now(),
-                    "mood": ["😣", "😕", "🙂", "😊", "🤩"].index(mood_choice) + 1,
-                    "emoji": mood_choice,
-                    "note": reflection_note.strip(),
-                }
-            )
-            st.success("Reflection saved.")
-        if st.session_state.daily_reflections:
-            df_reflect = pd.DataFrame(
-                [
-                    {"Time": entry["timestamp"], "Mood": entry["mood"]}
-                    for entry in st.session_state.daily_reflections
-                ]
-            )
-            st.line_chart(df_reflect.set_index("Time"))
 
     elif section == "Widget shelf":
         st.markdown("### Widget shelf 🧺")
