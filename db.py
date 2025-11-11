@@ -38,7 +38,8 @@ def init_db() -> None:
                 password_hash TEXT NOT NULL,
                 password_salt TEXT NOT NULL,
                 encryption_salt TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                theme_preference TEXT
             )
             """
         )
@@ -55,6 +56,10 @@ def init_db() -> None:
             )
             """
         )
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN theme_preference TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS check_ins (
@@ -192,6 +197,13 @@ def fetch_devices(user_id: int) -> List[sqlite3.Row]:
     ).fetchall()
     conn.close()
     return rows
+
+
+def update_user_theme(user_id: int, theme_key: str) -> None:
+    conn = _connect()
+    with conn:
+        conn.execute("UPDATE users SET theme_preference = ? WHERE id = ?", (theme_key, user_id))
+    conn.close()
 
 
 # --- Insert helpers -------------------------------------------------------
