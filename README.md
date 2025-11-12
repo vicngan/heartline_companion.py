@@ -1,6 +1,6 @@
 # Heartline Care Companion
 
-An emotionally-intelligent care companion that blends soft check-ins with logistical health support for students, healthcare workers, night-shift angels, and anxious girlies. Built with Streamlit so you can deploy quickly on the web (and later wrap it for mobile if you choose).
+An emotionally-intelligent care companion that blends soft check-ins with logistical health support for students, healthcare workers, night-shift angels, and anxious friends. Built with Streamlit so you can deploy quickly on the web (and later wrap it for mobile if you choose).
 
 ## ✨ MVP Feature Overview
 - **Emotional check-in** – captures mood, energy, and rhythm to tailor routines without guilt.
@@ -12,7 +12,7 @@ An emotionally-intelligent care companion that blends soft check-ins with logist
 - **Self-compassion cues** – soft nudges that adapt when energy dips.
 - **Energy-based task buddy** – gentle suggestions + the “Today, just three” rule keep momentum without overwhelm.
 - **No-shame re-entry** – welcoming screen after time away so streak guilt never shows up.
-- **Soft care & feelings check** – micro self-care prompts, emotional block selector, and affirmations built for gentle girlies.
+- **Soft care & feelings check** – micro self-care prompts, emotional block selector, and affirmations built for gentle friends.
 - **Calendar & digest lab** – export ICS files, prep Google sync, and email a weekly pastel digest to yourself or a mentor.
 - **Support circle sharing** – download a privacy-aware care packet (JSON) or queue an invite for a trusted teammate.
 - **Ambient cue studio** – pick a lo-fi/matcha sound loop to use as a gentle alarm (download for offline shifts).
