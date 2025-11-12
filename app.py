@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List
+from urllib.parse import urlparse
 
 import pandas as pd
 import streamlit as st
@@ -161,6 +162,24 @@ BASE_CSS = """
   font-size: 1rem;
   color: rgba(31,35,39,0.85);
   animation: bow-pop 1.2s ease forwards;
+}
+.ambient-footer {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  width: min(320px, 90vw);
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(31,35,39,0.08);
+  border-radius: 18px;
+  box-shadow: 0 20px 40px rgba(31,35,39,0.18);
+  padding: 8px 12px;
+  z-index: 999;
+}
+.ambient-footer audio {
+  width: 100%;
+}
+.ambient-footer--spotify iframe {
+  border-radius: 14px;
 }
 .widget-card {
   background: var(--off-white);
@@ -782,6 +801,36 @@ SOUND_EFFECTS = {
     "page": "https://cdn.pixabay.com/download/audio/2022/03/14/audio_2905ddbfda.mp3?filename=book-page-flip-10555.mp3",
     "glitter": "https://cdn.pixabay.com/download/audio/2021/09/30/audio_9fda986996.mp3?filename=magic-wand-6296.mp3",
 }
+
+
+def spotify_embed_url(url: str) -> str:
+    """Convert a Spotify share link (track/album/playlist/show) into an embed URL."""
+    if not url:
+        return ""
+    clean = url.strip()
+    if not clean:
+        return ""
+    if not clean.startswith("http"):
+        clean = f"https://{clean}"
+    try:
+        parsed = urlparse(clean)
+    except ValueError:
+        return ""
+    host = parsed.netloc.replace("www.", "")
+    if "spotify" not in host:
+        return ""
+    path_segments = [segment for segment in parsed.path.split("/") if segment]
+    if not path_segments:
+        return ""
+    if path_segments[0].startswith("intl-"):
+        path_segments = path_segments[1:]
+    if not path_segments:
+        return ""
+    if path_segments[0] == "embed":
+        embed_path = "/".join(path_segments)
+    else:
+        embed_path = "embed/" + "/".join(path_segments)
+    return f"https://open.spotify.com/{embed_path}"
 
 TASK_SIZES = ["Tiny", "Medium", "Big"]
 ENERGY_TASK_LIBRARY = {
@@ -2274,23 +2323,55 @@ def render_profile_page() -> None:
     with heart_card_container():
         st.markdown("### Ambient studio")
         ambient_keys = list(AUDIO_LIBRARY.keys())
-        current_track = st.session_state.get("ambient_track", ambient_keys[0])
-        track_choice = st.selectbox(
-            "Soundtrack",
-            ambient_keys,
-            index=ambient_keys.index(current_track) if current_track in ambient_keys else 0,
-            key="profile_ambient_track",
+        source_options = ["Built-in loops", "Spotify link"]
+        use_spotify = (
+            st.radio(
+                "Source",
+                source_options,
+                horizontal=True,
+                index=1 if st.session_state.get("ambient_use_spotify") else 0,
+                key="ambient_source_radio",
+            )
+            == "Spotify link"
         )
-        if track_choice != current_track:
-            st.session_state.ambient_track = track_choice
+        st.session_state.ambient_use_spotify = use_spotify
+        if use_spotify:
+            spotify_default = st.session_state.get("ambient_spotify_url", "")
+            spotify_input = st.text_input(
+                "Spotify track / playlist URL",
+                value=spotify_default,
+                placeholder="https://open.spotify.com/track/...",
+                help="Paste any public Spotify track, album, playlist, or show link.",
+            )
+            if spotify_input != spotify_default:
+                st.session_state.ambient_spotify_url = spotify_input
+                st.session_state.ambient_spotify_embed = spotify_embed_url(spotify_input)
+            embed_url = st.session_state.get("ambient_spotify_embed")
+            if embed_url:
+                st.info("Spotify mini-player will float when ambient audio is on.")
+                st.markdown(
+                    f'<iframe src="{embed_url}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.warning("Paste a public Spotify link to unlock the embed.")
+        else:
+            current_track = st.session_state.get("ambient_track", ambient_keys[0])
+            track_choice = st.selectbox(
+                "Soundtrack",
+                ambient_keys,
+                index=ambient_keys.index(current_track) if current_track in ambient_keys else 0,
+                key="profile_ambient_track",
+            )
+            if track_choice != current_track:
+                st.session_state.ambient_track = track_choice
+            st.audio(AUDIO_LIBRARY[st.session_state.ambient_track])
         play_toggle = st.checkbox(
             "Play ambient audio across the app",
             value=st.session_state.get("ambient_playing", False),
             key="profile_ambient_play",
         )
         st.session_state.ambient_playing = play_toggle
-        if play_toggle:
-            st.audio(AUDIO_LIBRARY[st.session_state.ambient_track])
     if st.button("Sign out", key="profile_page_sign_out"):
         clear_persistent_session()
         reset_user_state()
@@ -2602,16 +2683,36 @@ def render_audio_studio() -> None:
 
 
 def render_ambient_player() -> None:
-    track = st.session_state.get("ambient_track")
     playing = st.session_state.get("ambient_playing")
+    if not playing:
+        return
+    use_spotify = st.session_state.get("ambient_use_spotify")
+    spotify_embed = st.session_state.get("ambient_spotify_embed")
+    if use_spotify and spotify_embed:
+        st.markdown(
+            f"""
+            <div class="ambient-footer ambient-footer--spotify">
+                <iframe src="{spotify_embed}" width="320" height="152" frameborder="0" allowtransparency="true"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
+    if use_spotify and not spotify_embed:
+        st.toast("Add a Spotify link first.", icon="⚠️")
+        return
+    track = st.session_state.get("ambient_track")
     source = AUDIO_LIBRARY.get(track)
-    if not playing or not source:
+    if not source:
         return
     st.markdown(
         f"""
-        <audio autoplay loop controls style="display:none">
-            <source src="{source}" type="audio/mpeg">
-        </audio>
+        <div class="ambient-footer">
+            <audio autoplay loop controls>
+                <source src="{source}" type="audio/mpeg">
+            </audio>
+        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -2877,6 +2978,9 @@ defaults = {
         "nav_view": "Home",
         "ambient_track": list(AUDIO_LIBRARY.keys())[0],
         "ambient_playing": False,
+        "ambient_use_spotify": False,
+        "ambient_spotify_url": "",
+        "ambient_spotify_embed": "",
         "tutorial_open": False,
         "goal_overview": {"year": "", "month": "", "day": ""},
         "goal_progress": {"year": 0, "month": 0, "day": 0},
@@ -2913,6 +3017,9 @@ def reset_user_state() -> None:
     st.session_state.goal_progress = {"year": 0, "month": 0, "day": 0}
     st.session_state.ambient_track = list(AUDIO_LIBRARY.keys())[0]
     st.session_state.ambient_playing = False
+    st.session_state.ambient_use_spotify = False
+    st.session_state.ambient_spotify_url = ""
+    st.session_state.ambient_spotify_embed = ""
 
 
 def hash_token(token: str) -> str:
