@@ -18,6 +18,25 @@ An emotionally-intelligent care companion that blends soft check-ins with logist
 - **Ambient cue studio** – pick a lo-fi/matcha sound loop to use as a gentle alarm (download for offline shifts).
 - **Mini self check-in expander** – a consistent keyed `st.text_area` keeps dual check-ins stable even after theme swaps.
 
+## 🧠 Tech Stack & Skills Demonstrated
+- **Python 3.11+ / Streamlit 1.33** for the reactive UI, dialogs, and custom theming via injected CSS.
+- **SQLite + SQLAlchemy-lite helpers** in `db.py` to persist encrypted user data, devices, and tutorial state.
+- **Security & crypto**: PBKDF2-HMAC password hashing, Fernet symmetric encryption, remember-me token rotation.
+- **Pandas, Altair, Matplotlib (optional)** for the quicklook charts, energy reflections, and exports.
+- **FPDF & Pillow** to render printable care packets / snapshots with custom fonts.
+- **Expo + React Native shell** (see `mobile_shell/`) showing how to wrap the Streamlit instance for iOS/Android and deliver push tokens.
+- **Notifications / automation** integrations: SMTP email, Expo push, ICS generation, CSV exports.
+
+## 🆕 Recent Updates
+- **Sidebar glow-up** – stacked bubble-font logo, mini profile card (avatar + name only), plus “Cosmic summary” and goal overview panels pinned above navigation.
+- **Goal progress tracker** – Memory & Goals tab now collects % completion sliders for year/month/day goals; the sidebar mirrors them with progress bars so users see their momentum at a glance.
+- **Energy tracker widget** – new slider + note box in the widget shelf records quick energy snapshots and keeps `latest_energy` synced with suggestion engines.
+- **Profile studio refresh** – dedicated Profile page with birthday (MM/DD/YYYY), zodiac picker, fun-fact field, draggable avatar uploader, and theme/ambient selections tied to the account.
+- **Tutorial & help lane** – per-account onboarding tour can be reopened via the sidebar help icon; dismissal state is stored in SQLite to avoid nagging.
+- **Checklist persistence** – tasks reset logic now preserves completed history inside Memory & Goals for later reflection/exports.
+- **Input aesthetics** – every text/number/date input shares a slim dark border with theme-colored focus halo for consistent vibe across themes.
+- **Streamlit compatibility** – deprecated `st.experimental_rerun` replaced with `st.rerun`, and page-config moved to the top to avoid multiple-call errors.
+
 ### Screen flow
 1. **Home** – soft check-in, adaptive routines, recent emotional receipts, weekly digest.
 2. **Health Planner** – appointments, scripts, symptom tracker, gentle reminders.

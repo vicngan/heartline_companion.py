@@ -76,6 +76,9 @@ BASE_CSS = """
   --heart-checkbox: var(--olive);
   --heart-illustration-border: rgba(47,47,50,0.08);
   --heart-illustration-bg: linear-gradient(120deg, rgba(174,191,167,0.25), rgba(247,246,243,0.7));
+  --heart-input-border: rgba(47,47,50,0.22);
+  --heart-input-focus: var(--sage);
+  --heart-input-focus-glow: rgba(174,191,167,0.28);
 }
 *::-webkit-scrollbar { width: 6px; }
 *::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 6px; }
@@ -573,6 +576,35 @@ LAYOUT_CSS = """
         border-radius: 10px;
         padding: 8px 10px;
     }
+    div[data-baseweb="input"],
+    div[data-baseweb="textarea"],
+    div[data-baseweb="select"] > div:first-child,
+    div[data-baseweb="timepicker"],
+    div[data-baseweb="datepicker"],
+    .stTextArea textarea,
+    .stTextInput input,
+    .stDateInput input,
+    .stTimeInput input,
+    .stNumberInput input {
+        border: 1px solid var(--heart-input-border);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.95);
+        transition: border var(--transition-soft), box-shadow var(--transition-soft), background var(--transition-soft);
+    }
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="textarea"]:focus-within,
+    div[data-baseweb="select"]:focus-within > div:first-child,
+    div[data-baseweb="timepicker"]:focus-within,
+    div[data-baseweb="datepicker"]:focus-within,
+    .stTextArea textarea:focus,
+    .stTextInput input:focus,
+    .stDateInput input:focus,
+    .stTimeInput input:focus,
+    .stNumberInput input:focus {
+        border-color: var(--heart-input-focus);
+        box-shadow: 0 0 0 2px var(--heart-input-focus-glow);
+        background: rgba(255,255,255,0.99);
+    }
     .stCheckbox {
         margin-top: -6px;
     }
@@ -594,6 +626,9 @@ THEME_PRESETS = {
           --heart-button-radius: 28px 10px 28px 10px;
           --heart-button-shadow: 0 22px 48px rgb(247 155 194 / 45%);
           --heart-illustration-bg: rgba(250,220,225,0.65);
+          --heart-input-border: rgba(242,158,190,0.55);
+          --heart-input-focus: #F29EBE;
+          --heart-input-focus-glow: rgba(242,158,190,0.35);
         }
         .stApp {
           background-size: cover, 420px;
@@ -632,6 +667,9 @@ THEME_PRESETS = {
           --heart-button-shadow: 0 18px 40px rgb(171 196 255 / 45%);
           --heart-checkbox: #B6C8FF;
           --heart-illustration-bg: linear-gradient(135deg, rgba(228,227,255,0.5), rgba(216,241,255,0.65));
+          --heart-input-border: rgba(171,196,255,0.45);
+          --heart-input-focus: #8FA7FF;
+          --heart-input-focus-glow: rgba(171,196,255,0.4);
         }
         .heart-card {
           animation: cloud-bob 9s ease-in-out infinite;
@@ -675,6 +713,9 @@ THEME_PRESETS = {
           --heart-button-shadow: 0 15px 28px rgb(169 195 168 / 35%);
           --heart-checkbox: #8DAF8A;
           --heart-illustration-bg: linear-gradient(120deg, rgba(169,195,168,0.4), rgba(253,251,247,0.8));
+          --heart-input-border: rgba(131,155,129,0.55);
+          --heart-input-focus: #6F8A6D;
+          --heart-input-focus-glow: rgba(131,155,129,0.35);
         }
         .heart-card {
           border: 1px dashed rgba(131, 155, 129, 0.7);
@@ -710,6 +751,9 @@ THEME_PRESETS = {
           --heart-button-text: #1f2327;
           --heart-checkbox: #4D9DE0;
           --heart-illustration-bg: linear-gradient(120deg, rgba(77,157,224,0.08), rgba(255,255,255,0.85));
+          --heart-input-border: rgba(77,157,224,0.28);
+          --heart-input-focus: #4D9DE0;
+          --heart-input-focus-glow: rgba(77,157,224,0.35);
         }
         .heart-hero, .heart-card {
           border: 1px solid rgba(31,35,39,0.08);
@@ -2257,6 +2301,8 @@ def render_memory_goals() -> None:
     ensure_data_loaded()
     if "goal_overview" not in st.session_state:
         st.session_state.goal_overview = {"year": "", "month": "", "day": ""}
+    if "goal_progress" not in st.session_state:
+        st.session_state.goal_progress = {"year": 0, "month": 0, "day": 0}
     hero_section(
         "Memory & goals",
         "Browse your wins, revisit reflections, and set soft goals.",
@@ -2312,14 +2358,21 @@ def render_memory_goals() -> None:
     st.divider()
     st.subheader("Goal board")
     goals = st.session_state.goal_overview
+    progress = st.session_state.goal_progress
     with heart_card_container():
         with st.form("goal_board_form"):
             year_goal = st.text_area("Year focus", value=goals["year"], placeholder="Plant new roots, finish capstone...", height=80)
             month_goal = st.text_area("Month at a glance", value=goals["month"], placeholder="Schedule annual physical, write two chapters...", height=70)
             day_goal = st.text_area("Today / this week", value=goals["day"], placeholder="Email Dr. Kim, stretch, drink water...", height=60)
+            st.markdown("###### Progress check-ins")
+            prog_cols = st.columns(3)
+            year_pct = prog_cols[0].slider("Year", 0, 100, progress["year"], key="year_progress_slider")
+            month_pct = prog_cols[1].slider("Month", 0, 100, progress["month"], key="month_progress_slider")
+            day_pct = prog_cols[2].slider("Day / week", 0, 100, progress["day"], key="day_progress_slider")
             save_goals = st.form_submit_button("Save goals board")
         if save_goals:
             st.session_state.goal_overview = {"year": year_goal.strip(), "month": month_goal.strip(), "day": day_goal.strip()}
+            st.session_state.goal_progress = {"year": year_pct, "month": month_pct, "day": day_pct}
             st.success("Goals updated. future you took a screenshot.")
         if st.button("Need an affirmation?", key="memory_affirm"):
             st.success(random.choice(AFFIRMATIONS))
@@ -2625,18 +2678,16 @@ def render_focus_timer() -> None:
 
 
 def render_sidebar_tools() -> None:
-    with st.sidebar.expander("✨ Quick links", expanded=True):
-        quick_idx = HOME_SECTIONS.index(st.session_state.get("home_section", HOME_SECTIONS[0]))
-        quick_choice = st.radio(
-            "Jump to desk view",
-            HOME_SECTIONS,
-            index=quick_idx,
-            key="sidebar_home_links",
-        )
-        if quick_choice != st.session_state.home_section:
-            st.session_state.home_section = quick_choice
-            st.session_state["home_section_radio"] = quick_choice
-            st.rerun()
+    with st.sidebar.expander("🌿 Progress tracker", expanded=True):
+        progress = st.session_state.get("goal_progress", {"year": 0, "month": 0, "day": 0})
+        clamp = lambda value: max(0, min(100, int(value or 0)))
+        year_pct = clamp(progress.get("year"))
+        month_pct = clamp(progress.get("month"))
+        st.caption("Year focus")
+        st.progress(year_pct / 100 if year_pct else 0.0, text=f"{year_pct}% complete")
+        st.caption("Month rhythm")
+        st.progress(month_pct / 100 if month_pct else 0.0, text=f"{month_pct}% complete")
+
     st.sidebar.markdown("### Companion toolbox")
     with st.sidebar.expander("✨ Toolbox", expanded=False):
         render_notification_settings()
@@ -2765,6 +2816,9 @@ def main():
     nav_options = ["Home", "Health Planner", "Calendar Studio", "Shift Support", "Memory & Goals", "Profile"]
     if "nav_view_radio" not in st.session_state or st.session_state["nav_view_radio"] not in nav_options:
         st.session_state["nav_view_radio"] = nav_options[0]
+    pending_nav = st.session_state.pop("nav_view_requested", None)
+    if pending_nav in nav_options:
+        st.session_state["nav_view_radio"] = pending_nav
     view = st.sidebar.radio(
         "Navigate",
         nav_options,
@@ -2825,6 +2879,7 @@ defaults = {
         "ambient_playing": False,
         "tutorial_open": False,
         "goal_overview": {"year": "", "month": "", "day": ""},
+        "goal_progress": {"year": 0, "month": 0, "day": 0},
     }
 for key, value in defaults.items():
     if key not in st.session_state:
@@ -2855,6 +2910,7 @@ def reset_user_state() -> None:
     st.session_state.theme_just_switched = False
     st.session_state.tutorial_open = False
     st.session_state.goal_overview = {"year": "", "month": "", "day": ""}
+    st.session_state.goal_progress = {"year": 0, "month": 0, "day": 0}
     st.session_state.ambient_track = list(AUDIO_LIBRARY.keys())[0]
     st.session_state.ambient_playing = False
 
@@ -3293,10 +3349,10 @@ def build_share_packet() -> bytes:
 
 def energy_task_suggestions(energy: int) -> List[str]:
     if energy <= 3:
-        return ENERGY_TASK_LIBRARY["low priority"]
+        return ENERGY_TASK_LIBRARY.get("low priority", ENERGY_TASK_LIBRARY.get("low energy", []))
     if energy <= 7:
-        return ENERGY_TASK_LIBRARY["medium priority"]
-    return ENERGY_TASK_LIBRARY["high priority"]
+        return ENERGY_TASK_LIBRARY.get("medium priority", ENERGY_TASK_LIBRARY.get("medium energy", []))
+    return ENERGY_TASK_LIBRARY.get("high priority", ENERGY_TASK_LIBRARY.get("high energy", []))
 
 
 def latest_check_in_timestamp() -> datetime | None:
