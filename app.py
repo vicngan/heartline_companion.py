@@ -2,6 +2,7 @@ import base64
 import calendar
 import csv
 import hashlib
+import logging
 import io
 import json
 import os
@@ -15,6 +16,12 @@ from urllib.parse import urlparse
 
 import pandas as pd
 import streamlit as st
+try:  # Streamlit < 1.12 lacked errors module
+    from streamlit.errors import StreamlitAPIException
+except ImportError:  # pragma: no cover - fallback for older versions
+    class StreamlitAPIException(Exception):
+        """Fallback when StreamlitAPIException is unavailable."""
+
 from PIL import Image, ImageDraw, ImageFont
 
 try:
@@ -37,6 +44,8 @@ from security import (
     encrypt_text,
     verify_password,
 )
+
+logger = logging.getLogger(__name__)
 
 APP_NAME = "Heartline Care Companion"
 
@@ -2496,7 +2505,8 @@ def render_tutorial():
     user = st.session_state.get("user")
 
     # ---- A) Native dialog path (Streamlit ≥ 1.31) ----
-    if hasattr(st, "dialog"):
+    dialog_api = getattr(st, "dialog", None)
+    if dialog_api:
         def _on_save():
             try:
                 if user:
@@ -2511,32 +2521,40 @@ def render_tutorial():
             st.session_state.tutorial_open = False
             _rerun()
 
-        @st.dialog("Heartline walkthrough", width="large")
-        def _tour():
-            st.markdown("### ✨ Heartline walkthrough")
-            st.markdown(
-                """
-                **Tabs at a glance**  
-                • *Home* — energy check-ins, reflections, quick tasks.  
-                • *Health Planner* — appointments, scripts, symptoms, exports.  
-                • *Calendar Studio* — create events + checklists, download ICS/CSV.  
-                • *Shift Support* — rhythm-aware focus + hydration nudges.  
-                • *Memory & Goals* — completed wins + goal board.  
-                • *Profile* — avatar, DOB/zodiac, theme, ambient audio, reminders.
+        try:
+            @dialog_api("Heartline walkthrough", width="large")
+            def _tour():
+                st.markdown("### ✨ Heartline walkthrough")
+                st.markdown(
+                    """
+                    **Tabs at a glance**  
+                    • *Home* — energy check-ins, reflections, quick tasks.  
+                    • *Health Planner* — appointments, scripts, symptoms, exports.  
+                    • *Calendar Studio* — create events + checklists, download ICS/CSV.  
+                    • *Shift Support* — rhythm-aware focus + hydration nudges.  
+                    • *Memory & Goals* — completed wins + goal board.  
+                    • *Profile* — avatar, DOB/zodiac, theme, ambient audio, reminders.
 
-                **Sharing & sync**  
-                • Exports (ICS/CSV/PDF/JSON) play nicely with Google/Outlook/care teams.  
-                • Tasks + calendar items stay tied to your account.
+                    **Sharing & sync**  
+                    • Exports (ICS/CSV/PDF/JSON) play nicely with Google/Outlook/care teams.  
+                    • Tasks + calendar items stay tied to your account.
 
-                Tap **Help & tour** anytime to reopen.
-                """
-            )
-            c1 = st.columns(2)
-            with c1:
-                st.button("Save & close", use_container_width=True, on_click=_on_save, key="tour_save_btn")
-            
-        _tour()
-        return
+                    Tap **Help & tour** anytime to reopen.
+                    """
+                )
+                c1 = st.columns(2)
+                with c1:
+                    st.button(
+                        "Save & close",
+                        use_container_width=True,
+                        on_click=_on_save,
+                        key="tour_save_btn",
+                    )
+
+            _tour()
+            return
+        except StreamlitAPIException as exc:  # pragma: no cover - only triggered on unsupported versions
+            logger.warning("Streamlit dialog unavailable (%s). Falling back to sidebar walkthrough.", exc)
 
     # ---- B) Fallback: sidebar expander with arrow chevron ----
     with st.sidebar.expander("✨ Heartline walkthrough", expanded=True):
