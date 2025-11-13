@@ -2511,7 +2511,7 @@ def render_tutorial():
             st.session_state.tutorial_open = False
             _rerun()
 
-        @st.dialog("", width="large")
+        @st.dialog("Heartline walkthrough", width="large")
         def _tour():
             st.markdown("### ✨ Heartline walkthrough")
             st.markdown(
