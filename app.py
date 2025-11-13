@@ -15,8 +15,12 @@ from urllib.parse import urlparse
 
 import pandas as pd
 import streamlit as st
-from fpdf import FPDF
 from PIL import Image, ImageDraw, ImageFont
+
+try:
+    from fpdf import FPDF
+except ModuleNotFoundError:  # keep the app running even if optional deps are missing
+    FPDF = None
 plt = None
 try:  # optional dependency
     import matplotlib.pyplot as mpl_pyplot
@@ -1731,9 +1735,17 @@ def apply_energy_aura(energy):
             st.subheader("Care & digest")
             digest_text = weekly_digest_summary(st.session_state.check_ins, st.session_state.symptoms)
             st.write(digest_text)
-            digest_pdf = create_digest_pdf(digest_text)
             digest_png = create_digest_png(digest_text)
-            st.download_button("Download digest PDF", data=digest_pdf, file_name="heartline-digest.pdf", mime="application/pdf")
+            if FPDF is None:
+                st.info("Install `fpdf2` so you can export the digest as a PDF.")
+            else:
+                digest_pdf = create_digest_pdf(digest_text)
+                st.download_button(
+                    "Download digest PDF",
+                    data=digest_pdf,
+                    file_name="heartline-digest.pdf",
+                    mime="application/pdf",
+                )
             st.download_button("Download digest PNG", data=digest_png, file_name="heartline-digest.png", mime="image/png")
             with st.form("digest_delivery"):
                 digest_email = st.text_input("Email digest to", placeholder="heartline.notes@gmail.com")
@@ -1876,8 +1888,16 @@ def render_health_planner():
         )
         with heart_card_container():
             st.dataframe(symp_df, use_container_width=True, hide_index=True)
-        pdf_bytes = create_symptom_pdf(st.session_state.symptoms)
-        st.download_button("Download cute PDF for doctor", data=pdf_bytes, file_name="heartline-notes.pdf", mime="application/pdf")
+        if FPDF is None:
+            st.info("Install `fpdf2` to enable PDF exports for your doctor.")
+        else:
+            pdf_bytes = create_symptom_pdf(st.session_state.symptoms)
+            st.download_button(
+                "Download cute PDF for doctor",
+                data=pdf_bytes,
+                file_name="heartline-notes.pdf",
+                mime="application/pdf",
+            )
 
     st.divider()
     st.markdown("#### Gentle reminders")
@@ -3275,6 +3295,8 @@ def update_event_task_completion(event_id: int, task_id: str, done: bool) -> Non
 
 
 def create_symptom_pdf(entries: List[Dict]) -> bytes:
+    if FPDF is None:
+        raise RuntimeError("fpdf2 is not installed; PDF export is unavailable.")
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -3300,6 +3322,8 @@ def create_symptom_pdf(entries: List[Dict]) -> bytes:
 
 
 def create_digest_pdf(digest_text: str) -> bytes:
+    if FPDF is None:
+        raise RuntimeError("fpdf2 is not installed; PDF export is unavailable.")
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
