@@ -2491,12 +2491,14 @@ def render_memory_goals() -> None:
 # defaults — only set once
 st.session_state.setdefault("tutorial_open", False)
 st.session_state.setdefault("user", None)  # or your signed-in user dict
+st.session_state.setdefault("_tutorial_pending_rerun", False)
 
 dialog_api = getattr(st, "dialog", None)
 
 
 def _dismiss_tutorial():
     st.session_state.tutorial_open = False
+    st.session_state["_tutorial_pending_rerun"] = True
 
 
 def _complete_tutorial():
@@ -2988,6 +2990,8 @@ def main():
     render_sidebar_tools()
     render_ambient_player()
     render_tutorial()
+    if st.session_state.pop("_tutorial_pending_rerun", False):
+        st.rerun()
 
 
 def init_state() -> None:
