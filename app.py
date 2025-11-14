@@ -2531,21 +2531,7 @@ def _render_tutorial_body():
         Tap **Help & tour** anytime to reopen.
         """
     )
-    c1, c2 = st.columns(2)
-    with c1:
-        st.button(
-            "Save & close",
-            use_container_width=True,
-            on_click=_complete_tutorial,
-            key="tour_save_btn",
-        )
-    with c2:
-        st.button(
-            "Close",
-            use_container_width=True,
-            on_click=_dismiss_tutorial,
-            key="tour_close_btn",
-        )
+    st.caption("Close this walkthrough with the × in the dialog header when you're ready.")
 
 
 if dialog_api:
@@ -2586,8 +2572,6 @@ def render_tutorial():
             Tap **Help & tour** anytime to reopen.
             """
         )
-        if st.button("Close", key="tour_close_btn_fb"):
-            _dismiss_tutorial()
 
 def render_shift_support():
     ensure_data_loaded()
