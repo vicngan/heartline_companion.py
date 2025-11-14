@@ -2491,14 +2491,12 @@ def render_memory_goals() -> None:
 # defaults — only set once
 st.session_state.setdefault("tutorial_open", False)
 st.session_state.setdefault("user", None)  # or your signed-in user dict
-st.session_state.setdefault("_tutorial_pending_rerun", False)
 
 dialog_api = getattr(st, "dialog", None)
 
 
 def _dismiss_tutorial():
     st.session_state.tutorial_open = False
-    st.session_state["_tutorial_pending_rerun"] = True
 
 
 def _complete_tutorial():
@@ -2549,6 +2547,7 @@ def render_tutorial():
     if render_tutorial_dialog:
         try:
             render_tutorial_dialog()
+            st.session_state.tutorial_open = False
             return
         except StreamlitAPIException as exc:  # pragma: no cover - only triggered on unsupported versions
             logger.warning("Streamlit dialog unavailable (%s). Falling back to sidebar walkthrough.", exc)
@@ -2572,6 +2571,7 @@ def render_tutorial():
             Tap **Help & tour** anytime to reopen.
             """
         )
+    st.session_state.tutorial_open = False
 
 def render_shift_support():
     ensure_data_loaded()
@@ -2974,8 +2974,6 @@ def main():
     render_sidebar_tools()
     render_ambient_player()
     render_tutorial()
-    if st.session_state.pop("_tutorial_pending_rerun", False):
-        st.rerun()
 
 
 def init_state() -> None:
