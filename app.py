@@ -62,6 +62,7 @@ EVENT_COLOR_PRESETS = {
     "Sky wash": "#CDE8FF",
     "Honey sand": "#E9D8A6",
 }
+MOOD_EMOJIS = ["😣", "😕", "🙂", "😊", "🤩"]
 BASE_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
@@ -1430,7 +1431,7 @@ def render_home():
     with tab_reflect:
         mood_choice = st.radio(
             "How did today feel?",
-            ["😣", "😕", "🙂", "😊", "🤩"],
+            MOOD_EMOJIS,
             horizontal=True,
             label_visibility="collapsed",
             key="reflection_mood",
@@ -1441,16 +1442,10 @@ def render_home():
             key="reflection_note",
         )
         if st.button("Save reflection", key="save_reflection"):
-            st.session_state.daily_reflections.append(
-                {
-                    "timestamp": datetime.now(),
-                    "mood": ["😣", "😕", "🙂", "😊", "🤩"].index(mood_choice) + 1,
-                    "emoji": mood_choice,
-                    "note": reflection_note.strip(),
-                }
-            )
-            st.success("Reflection saved.")
-            st.info(random.choice(AFFIRMATIONS))
+            note_value = reflection_note.strip()
+            if log_daily_reflection(mood_choice, note_value):
+                st.success("Reflection saved.")
+                st.info(random.choice(AFFIRMATIONS))
     with tab_trend:
         if st.session_state.daily_reflections and plt:
             df_reflect = pd.DataFrame(
@@ -1666,10 +1661,13 @@ def apply_energy_aura(energy):
                 label_visibility="collapsed",
             )
             if st.button("Save snippet", key="snippet_save"):
-                st.session_state.widget_reflection = snippet.strip()
-                if snippet.strip():
-                    store_reflection(f"{snippet.strip()}  \n\n_(soft desk snippet)_")
-                st.success("saved gently.")
+                content = snippet.strip()
+                st.session_state.widget_reflection = content
+                saved = True
+                if content:
+                    saved = store_reflection(f"{content}  \n\n_(soft desk snippet)_")
+                if saved:
+                    st.success("saved gently.")
         with widget_card("Focus timer", "⏱"):
             render_focus_timer()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1781,10 +1779,12 @@ def apply_energy_aura(energy):
             with st.form("reflection_form"):
                 reflection = st.text_area("what’s on your heart today?", height=120)
                 save_reflection = st.form_submit_button("Save reflection")
-            if save_reflection and reflection.strip():
-                closing = "thank you for trying. you are growing beautifully."
-                store_reflection(f"{reflection.strip()}\n\n_{closing}_")
-                st.success("Reflection saved with a soft affirmation.")
+            if save_reflection:
+                reflection_text = reflection.strip()
+                if reflection_text:
+                    closing = "thank you for trying. you are growing beautifully."
+                    if store_reflection(f"{reflection_text}\n\n_{closing}_"):
+                        st.success("Reflection saved with a soft affirmation.")
             if st.session_state.reflections:
                 with st.expander("Recent reflections", expanded=False):
                     for entry in st.session_state.reflections[-3:][::-1]:
@@ -2482,9 +2482,10 @@ def render_memory_goals() -> None:
             day_pct = prog_cols[2].slider("Day / week", 0, 100, progress["day"], key="day_progress_slider")
             save_goals = st.form_submit_button("Save goals board")
         if save_goals:
-            st.session_state.goal_overview = {"year": year_goal.strip(), "month": month_goal.strip(), "day": day_goal.strip()}
-            st.session_state.goal_progress = {"year": year_pct, "month": month_pct, "day": day_pct}
-            st.success("Goals updated. future you took a screenshot.")
+            goals_payload = {"year": year_goal.strip(), "month": month_goal.strip(), "day": day_goal.strip()}
+            progress_payload = {"year": year_pct, "month": month_pct, "day": day_pct}
+            if save_goal_board(goals_payload, progress_payload):
+                st.success("Goals updated. future you took a screenshot.")
         if st.button("Need an affirmation?", key="memory_affirm"):
             st.success(random.choice(AFFIRMATIONS))
 
@@ -3147,6 +3148,22 @@ def load_user_data() -> None:
         }
         for row in db.fetch_personal_tasks(uid)
     ]
+    st.session_state.daily_reflections = [
+        {
+            "timestamp": datetime.fromisoformat(row["timestamp"]),
+            "mood": row["mood"],
+            "emoji": row["emoji"] or emoji_from_mood(row["mood"]),
+            "note": decrypt_text(row["note_encrypted"], key) if row["note_encrypted"] else "",
+        }
+        for row in db.fetch_daily_reflections(uid)
+    ]
+    st.session_state.reflections = [
+        {
+            "timestamp": datetime.fromisoformat(row["created_at"]),
+            "text": decrypt_text(row["body_encrypted"], key),
+        }
+        for row in db.fetch_journal_entries(uid)
+    ]
     st.session_state.calendar_events = [
         {
             "id": row["id"],
@@ -3161,6 +3178,18 @@ def load_user_data() -> None:
         }
         for row in db.fetch_calendar_events(uid)
     ]
+    goals_row = db.fetch_user_goals(uid)
+    if goals_row:
+        st.session_state.goal_overview = {
+            "year": goals_row["year_goal"] or "",
+            "month": goals_row["month_goal"] or "",
+            "day": goals_row["day_goal"] or "",
+        }
+        st.session_state.goal_progress = {
+            "year": goals_row["year_progress"],
+            "month": goals_row["month_progress"],
+            "day": goals_row["day_progress"],
+        }
     if st.session_state.check_ins:
         latest = st.session_state.check_ins[-1]
         st.session_state.selected_schedule = latest["schedule"]
@@ -3603,8 +3632,70 @@ def emotion_support_message(feeling: str) -> str:
     return EMOTION_SUPPORT.get(feeling, "You get to do this at your own pace.")
 
 
-def store_reflection(entry: str) -> None:
-    st.session_state.reflections.append({"timestamp": datetime.now(), "text": entry})
+def mood_score_from_emoji(emoji: str) -> int:
+    try:
+        return MOOD_EMOJIS.index(emoji) + 1
+    except ValueError:
+        return 3
+
+
+def emoji_from_mood(score: int) -> str:
+    if not MOOD_EMOJIS:
+        return "🙂"
+    idx = max(0, min(len(MOOD_EMOJIS) - 1, score - 1))
+    return MOOD_EMOJIS[idx]
+
+
+def log_daily_reflection(emoji: str, note: str) -> bool:
+    user = st.session_state.user
+    key = st.session_state.crypto_key
+    if not user or not key:
+        st.error("Please sign in to save reflections.")
+        return False
+    timestamp = datetime.now(timezone.utc)
+    payload = {
+        "timestamp": timestamp.isoformat(),
+        "mood": mood_score_from_emoji(emoji),
+        "emoji": emoji,
+        "note_encrypted": encrypt_text(note, key) if note else None,
+    }
+    db.insert_daily_reflection(user["id"], payload)
+    st.session_state.data_loaded = False
+    load_user_data()
+    return True
+
+
+def store_reflection(entry: str) -> bool:
+    user = st.session_state.user
+    key = st.session_state.crypto_key
+    if not user or not key:
+        st.error("Please sign in to save reflections.")
+        return False
+    timestamp = datetime.now(timezone.utc)
+    db.insert_journal_entry(user["id"], encrypt_text(entry, key), timestamp.isoformat())
+    st.session_state.data_loaded = False
+    load_user_data()
+    return True
+
+
+def save_goal_board(goals: Dict[str, str], progress: Dict[str, int]) -> bool:
+    user = st.session_state.user
+    if not user:
+        st.error("Please sign in to save your goals.")
+        return False
+    payload = {
+        "year_goal": goals.get("year", ""),
+        "month_goal": goals.get("month", ""),
+        "day_goal": goals.get("day", ""),
+        "year_progress": progress.get("year", 0),
+        "month_progress": progress.get("month", 0),
+        "day_progress": progress.get("day", 0),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    db.upsert_user_goals(user["id"], payload)
+    st.session_state.goal_overview = goals
+    st.session_state.goal_progress = progress
+    return True
 
 
 def remember_user_session(user_id: int, crypto_key: bytes) -> None:
