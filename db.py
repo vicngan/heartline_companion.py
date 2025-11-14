@@ -162,46 +162,6 @@ def init_db() -> None:
             conn.execute("ALTER TABLE personal_tasks ADD COLUMN completed_at TEXT")
         except sqlite3.OperationalError:
             pass
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS daily_reflections (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                timestamp TEXT NOT NULL,
-                mood INTEGER NOT NULL,
-                emoji TEXT,
-                note_encrypted TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS journal_entries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                body_encrypted TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS user_goals (
-                user_id INTEGER PRIMARY KEY,
-                year_goal TEXT,
-                month_goal TEXT,
-                day_goal TEXT,
-                year_progress INTEGER NOT NULL DEFAULT 0,
-                month_progress INTEGER NOT NULL DEFAULT 0,
-                day_progress INTEGER NOT NULL DEFAULT 0,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-            """
-        )
     conn.close()
 
 
@@ -304,36 +264,6 @@ def fetch_personal_tasks(user_id: int) -> List[sqlite3.Row]:
     ).fetchall()
     conn.close()
     return rows
-
-
-def fetch_daily_reflections(user_id: int) -> List[sqlite3.Row]:
-    conn = _connect()
-    rows = conn.execute(
-        "SELECT * FROM daily_reflections WHERE user_id = ? ORDER BY timestamp ASC",
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    return rows
-
-
-def fetch_journal_entries(user_id: int) -> List[sqlite3.Row]:
-    conn = _connect()
-    rows = conn.execute(
-        "SELECT * FROM journal_entries WHERE user_id = ? ORDER BY created_at ASC",
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    return rows
-
-
-def fetch_user_goals(user_id: int) -> Optional[sqlite3.Row]:
-    conn = _connect()
-    row = conn.execute(
-        "SELECT * FROM user_goals WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()
-    conn.close()
-    return row
 
 
 def update_user_theme(user_id: int, theme_key: str) -> None:
@@ -560,69 +490,6 @@ def delete_completed_personal_tasks(user_id: int) -> None:
         conn.execute(
             "DELETE FROM personal_tasks WHERE user_id = ? AND done = 1",
             (user_id,),
-        )
-    conn.close()
-
-
-def insert_daily_reflection(user_id: int, payload: Dict) -> None:
-    conn = _connect()
-    with conn:
-        conn.execute(
-            """
-            INSERT INTO daily_reflections (user_id, timestamp, mood, emoji, note_encrypted, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                user_id,
-                payload["timestamp"],
-                payload["mood"],
-                payload.get("emoji"),
-                payload.get("note_encrypted"),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-    conn.close()
-
-
-def insert_journal_entry(user_id: int, body_encrypted: str, created_at: str) -> None:
-    conn = _connect()
-    with conn:
-        conn.execute(
-            """
-            INSERT INTO journal_entries (user_id, body_encrypted, created_at)
-            VALUES (?, ?, ?)
-            """,
-            (user_id, body_encrypted, created_at),
-        )
-    conn.close()
-
-
-def upsert_user_goals(user_id: int, payload: Dict) -> None:
-    conn = _connect()
-    with conn:
-        conn.execute(
-            """
-            INSERT INTO user_goals (user_id, year_goal, month_goal, day_goal, year_progress, month_progress, day_progress, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET
-                year_goal = excluded.year_goal,
-                month_goal = excluded.month_goal,
-                day_goal = excluded.day_goal,
-                year_progress = excluded.year_progress,
-                month_progress = excluded.month_progress,
-                day_progress = excluded.day_progress,
-                updated_at = excluded.updated_at
-            """,
-            (
-                user_id,
-                payload["year_goal"],
-                payload["month_goal"],
-                payload["day_goal"],
-                payload["year_progress"],
-                payload["month_progress"],
-                payload["day_progress"],
-                payload["updated_at"],
-            ),
         )
     conn.close()
 
