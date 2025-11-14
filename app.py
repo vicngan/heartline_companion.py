@@ -3457,37 +3457,55 @@ def weekly_digest_summary(check_ins: List[Dict], symptoms: List[Dict]) -> str:
     )
 
 
+def _json_serialize(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
+    if isinstance(value, Path):
+        return str(value)
+    return str(value)
+
+
 def build_share_packet() -> bytes:
-    payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "profile": {
-            "name": st.session_state.user.get("name") if st.session_state.get("user") else None,
-            "birthday": st.session_state.user.get("birthday") if st.session_state.get("user") else None,
-            "zodiac": st.session_state.user.get("zodiac") if st.session_state.get("user") else None,
-            "fun_fact": st.session_state.user.get("fun_fact") if st.session_state.get("user") else None,
-            "theme": current_theme_key(),
-        },
-        "check_ins": st.session_state.check_ins,
-        "appointments": [
-            {**appt, "date": appt["date"].isoformat()} for appt in st.session_state.appointments
-        ],
-        "symptoms": [
-            {**entry, "date": entry["date"].isoformat()} for entry in st.session_state.symptoms
-        ],
-        "calendar_events": [
-            {
-                "title": event["title"],
-                "tag": event["tag"],
-                "location": event["location"],
-                "notes": event["notes"],
-                "start": event["start"].isoformat(),
-                "end": event["end"].isoformat(),
-                "tasks": event["tasks"],
-            }
-            for event in st.session_state.calendar_events
-        ],
-    }
-    return json.dumps(payload, indent=2).encode("utf-8")
+    try:
+        payload = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "profile": {
+                "name": st.session_state.user.get("name") if st.session_state.get("user") else None,
+                "birthday": st.session_state.user.get("birthday") if st.session_state.get("user") else None,
+                "zodiac": st.session_state.user.get("zodiac") if st.session_state.get("user") else None,
+                "fun_fact": st.session_state.user.get("fun_fact") if st.session_state.get("user") else None,
+                "theme": current_theme_key(),
+            },
+            "check_ins": [
+                {**entry, "timestamp": entry["timestamp"].isoformat()} for entry in st.session_state.check_ins
+            ],
+            "appointments": [
+                {**appt, "date": appt["date"].isoformat()} for appt in st.session_state.appointments
+            ],
+            "symptoms": [
+                {**entry, "date": entry["date"].isoformat()} for entry in st.session_state.symptoms
+            ],
+            "calendar_events": [
+                {
+                    "title": event["title"],
+                    "tag": event["tag"],
+                    "location": event["location"],
+                    "notes": event["notes"],
+                    "start": event["start"].isoformat(),
+                    "end": event["end"].isoformat(),
+                    "tasks": event["tasks"],
+                }
+                for event in st.session_state.calendar_events
+            ],
+        }
+        return json.dumps(payload, indent=2, default=_json_serialize).encode("utf-8")
+    except Exception as exc:  # pragma: no cover - defensive logging to user
+        logger.exception("Unable to build share packet")
+        st.error(f"Unable to build share packet: {exc}")
+        fallback = {"error": "Failed to build share packet", "details": str(exc)}
+        return json.dumps(fallback).encode("utf-8")
 
 
 def energy_task_suggestions(energy: int) -> List[str]:
