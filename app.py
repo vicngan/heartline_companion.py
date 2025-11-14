@@ -2492,18 +2492,11 @@ def render_memory_goals() -> None:
 st.session_state.setdefault("tutorial_open", False)
 st.session_state.setdefault("user", None)  # or your signed-in user dict
 
-def _rerun():
-    try:
-        st.rerun()
-    except AttributeError:
-        st.experimental_rerun()
-
 dialog_api = getattr(st, "dialog", None)
 
 
 def _dismiss_tutorial():
     st.session_state.tutorial_open = False
-    _rerun()
 
 
 def _complete_tutorial():
