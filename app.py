@@ -45,6 +45,7 @@ from security import (
     verify_password,
 )
 
+#main page 
 logger = logging.getLogger(__name__)
 
 APP_NAME = "Heartline Care Companion"
@@ -2497,61 +2498,76 @@ def _rerun():
     except AttributeError:
         st.experimental_rerun()
 
+dialog_api = getattr(st, "dialog", None)
+
+
+def _dismiss_tutorial():
+    st.session_state.tutorial_open = False
+    _rerun()
+
+
+def _complete_tutorial():
+    user = st.session_state.get("user")
+    try:
+        if user:
+            db.mark_tour_completed(user["id"])  # your real call
+            st.session_state.user["tour_completed"] = True
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("Unable to mark tutorial completed for user", exc_info=True)
+    _dismiss_tutorial()
+
+
+def _render_tutorial_body():
+    st.markdown("### ✨ Heartline walkthrough")
+    st.markdown(
+        """
+        **Tabs at a glance**  
+        • *Home* — energy check-ins, reflections, quick tasks.  
+        • *Health Planner* — appointments, scripts, symptoms, exports.  
+        • *Calendar Studio* — create events + checklists, download ICS/CSV.  
+        • *Shift Support* — rhythm-aware focus + hydration nudges.  
+        • *Memory & Goals* — completed wins + goal board.  
+        • *Profile* — avatar, DOB/zodiac, theme, ambient audio, reminders.
+
+        **Sharing & sync**  
+        • Exports (ICS/CSV/PDF/JSON) play nicely with Google/Outlook/care teams.  
+        • Tasks + calendar items stay tied to your account.
+
+        Tap **Help & tour** anytime to reopen.
+        """
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        st.button(
+            "Save & close",
+            use_container_width=True,
+            on_click=_complete_tutorial,
+            key="tour_save_btn",
+        )
+    with c2:
+        st.button(
+            "Close",
+            use_container_width=True,
+            on_click=_dismiss_tutorial,
+            key="tour_close_btn",
+        )
+
+
+if dialog_api:
+    @dialog_api("Mini tour 💫")
+    def render_tutorial_dialog():
+        _render_tutorial_body()
+else:
+    render_tutorial_dialog = None
+
 
 def render_tutorial():
     if not st.session_state.get("tutorial_open"):
         return
-
-    user = st.session_state.get("user")
-
     # ---- A) Native dialog path (Streamlit ≥ 1.31) ----
-    dialog_api = getattr(st, "dialog", None)
-    if dialog_api:
-        def _on_save():
-            try:
-                if user:
-                    db.mark_tour_completed(user["id"])  # your real call
-                    st.session_state.user["tour_completed"] = True
-            except Exception:
-                pass
-            st.session_state.tutorial_open = False
-            _rerun()
-
-        def _on_close():
-            st.session_state.tutorial_open = False
-            _rerun()
-
+    if render_tutorial_dialog:
         try:
-            @dialog_api("Heartline walkthrough", width="large")
-            def _tour():
-                st.markdown("### ✨ Heartline walkthrough")
-                st.markdown(
-                    """
-                    **Tabs at a glance**  
-                    • *Home* — energy check-ins, reflections, quick tasks.  
-                    • *Health Planner* — appointments, scripts, symptoms, exports.  
-                    • *Calendar Studio* — create events + checklists, download ICS/CSV.  
-                    • *Shift Support* — rhythm-aware focus + hydration nudges.  
-                    • *Memory & Goals* — completed wins + goal board.  
-                    • *Profile* — avatar, DOB/zodiac, theme, ambient audio, reminders.
-
-                    **Sharing & sync**  
-                    • Exports (ICS/CSV/PDF/JSON) play nicely with Google/Outlook/care teams.  
-                    • Tasks + calendar items stay tied to your account.
-
-                    Tap **Help & tour** anytime to reopen.
-                    """
-                )
-                c1 = st.columns(2)
-                with c1:
-                    st.button(
-                        "Save & close",
-                        use_container_width=True,
-                        on_click=_on_save,
-                        key="tour_save_btn",
-                    )
-
-            _tour()
+            render_tutorial_dialog()
             return
         except StreamlitAPIException as exc:  # pragma: no cover - only triggered on unsupported versions
             logger.warning("Streamlit dialog unavailable (%s). Falling back to sidebar walkthrough.", exc)
@@ -2576,8 +2592,7 @@ def render_tutorial():
             """
         )
         if st.button("Close", key="tour_close_btn_fb"):
-            st.session_state.tutorial_open = False
-            _rerun()
+            _dismiss_tutorial()
 
 def render_shift_support():
     ensure_data_loaded()
